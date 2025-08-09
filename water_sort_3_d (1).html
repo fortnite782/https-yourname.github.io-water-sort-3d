@@ -1,0 +1,323 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>Water Sort Puzzle — 3D Style (PWA)</title>
+  <meta name="theme-color" content="#071a2a" />
+  <meta name="description" content="Water Sort Puzzle — 100 levels, responsive, PWA-ready for Android & Web" />
+  <link rel="manifest" href="#manifest" id="manifestLink">
+  <style>
+    :root{
+      --bg:#0f1724; --card:#0b1220; --accent:#7c3aed; --glass:#e6f0ff20;
+      --tube-w:88px; --tube-h:300px; --liquid-layer-h:28px;
+      font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0;background:linear-gradient(180deg,#071022 0%, #071a2a 60%);color:#e8eef8;-webkit-font-smoothing:antialiased}
+    .app{min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:18px}
+
+    header{width:100%;max-width:1100px;display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+    .brand{display:flex;align-items:center;gap:12px}
+    .logo{width:48px;height:48px;border-radius:12px;background:linear-gradient(135deg,var(--accent),#06b6d4);box-shadow:0 6px 16px rgba(12,18,30,0.6);display:flex;align-items:center;justify-content:center;font-weight:700}
+    h1{font-size:18px;margin:0}
+
+    .controls{display:flex;align-items:center;gap:10px}
+    .btn{appearance:none;border:0;padding:10px 14px;border-radius:12px;background:linear-gradient(180deg,#142138 0%, #0f2938 100%);color:#e9f2ff;cursor:pointer;box-shadow:0 6px 18px rgba(2,6,23,0.6);font-weight:600}
+    .btn.secondary{background:transparent;border:1px solid rgba(255,255,255,0.06)}
+    .level-label{padding:8px 12px;border-radius:999px;background:linear-gradient(90deg,#122033,#102233);font-weight:700}
+
+    main{width:100%;max-width:1100px;display:flex;gap:18px}
+    .left{flex:1}
+    .board{background:linear-gradient(180deg,#071322, #071b2b);padding:18px;border-radius:16px;box-shadow:0 10px 40px rgba(2,6,23,0.7);display:flex;flex-wrap:wrap;gap:14px;justify-content:center;align-items:flex-end;min-height:460px}
+
+    /* tube */
+    .tube{width:var(--tube-w);height:var(--tube-h);position:relative;perspective:700px;cursor:pointer;display:flex;align-items:flex-end;touch-action:manipulation}
+    .tube-inner{position:absolute;left:50%;transform:translateX(-50%);bottom:0;width:76px;height:100%;border-radius:18px 18px 12px 12px;overflow:hidden;backface-visibility:hidden;transform-style:preserve-3d;box-shadow:0 10px 30px rgba(2,6,23,0.6), inset 0 -4px 16px rgba(0,0,0,0.6);border:1px solid rgba(255,255,255,0.06);background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+      transition:transform 200ms cubic-bezier(.2,.9,.2,1);
+    }
+    .tube:hover .tube-inner{transform:translateX(-50%) rotateX(6deg) scale(1.02)}
+
+    .liquid-layer{width:100%;height:var(--liquid-layer-h);transition:transform 420ms linear, height 240ms ease;display:block}
+    .cap{position:absolute;left:50%;transform:translateX(-50%);top:-22px;width:40px;height:18px;background:linear-gradient(180deg,#ffffff10,#00000020);border-radius:8px;border:1px solid rgba(255,255,255,0.04)}
+
+    .tube-label{position:absolute;bottom:-34px;left:50%;transform:translateX(-50%);font-weight:700;color:#cfe9ff70;font-size:13px}
+
+    .right{width:320px}
+    .panel{background:linear-gradient(180deg,#051420,#0b2230);padding:16px;border-radius:14px;box-shadow:0 8px 30px rgba(1,7,15,0.6)}
+    .stat{display:flex;justify-content:space-between;margin-bottom:12px}
+
+    .overlay{position:fixed;inset:0;background:rgba(1,2,6,0.6);display:flex;align-items:center;justify-content:center;z-index:40}
+    .pause-card{background:linear-gradient(180deg,#0b1420,#07101a);padding:22px;border-radius:14px;min-width:260px;text-align:center}
+
+    footer{margin-top:18px;color:#9fb3c7cc;font-size:13px}
+
+    /* responsive */
+    @media(max-width:1000px){:root{--tube-w:74px;--tube-h:280px;--liquid-layer-h:24px} .right{display:none}}
+    @media(max-width:480px){:root{--tube-w:56px;--tube-h:220px;--liquid-layer-h:18px} .logo{width:40px;height:40px}}
+  </style>
+</head>
+<body>
+  <div class="app" id="app">
+    <header>
+      <div class="brand">
+        <div class="logo">WS</div>
+        <div>
+          <h1>Water Sort — 3D Style</h1>
+          <div style="font-size:12px;color:#9fb3c7">100 levels • PWA-ready • Android & Web</div>
+        </div>
+      </div>
+
+      <div class="controls">
+        <div class="level-label" id="levelLabel">Level 1</div>
+        <button class="btn" id="restartBtn">Restart</button>
+        <button class="btn secondary" id="pauseBtn">Pause</button>
+      </div>
+    </header>
+
+    <main>
+      <section class="left">
+        <div class="board" id="board" aria-live="polite"></div>
+      </section>
+
+      <aside class="right">
+        <div class="panel">
+          <div class="stat"><div>Moves</div><div id="moves">0</div></div>
+          <div class="stat"><div>Time</div><div id="timer">00:00</div></div>
+          <div style="display:flex;gap:8px;margin-top:10px">
+            <button id="undoBtn" class="btn secondary">Undo</button>
+            <button id="hintBtn" class="btn">Hint</button>
+          </div>
+          <hr style="opacity:.06;margin:12px 0" />
+          <div style="font-size:13px;color:#a9c8dd">Level Progress</div>
+          <div id="levelsProgress" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;max-height:220px;overflow:auto"></div>
+        </div>
+      </aside>
+    </main>
+
+    <footer>Tip: Tap a tube to pick it up, then tap another to pour. Works on touch & mouse. Install as an app on Android via browser menu.</footer>
+  </div>
+
+  <template id="tubeTemplate">
+    <div class="tube" tabindex="0">
+      <div class="cap"></div>
+      <div class="tube-inner"></div>
+      <div class="tube-label"></div>
+    </div>
+  </template>
+
+  <div id="pauseOverlay" class="overlay" style="display:none">
+    <div class="pause-card">
+      <h2>Paused</h2>
+      <p style="color:#9fb3c7">Game is paused. Actions and timer are stopped.</p>
+      <div style="display:flex;gap:8px;justify-content:center;margin-top:12px">
+        <button class="btn" id="resumeBtn">Resume</button>
+        <button class="btn secondary" id="quitBtn">Quit</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ---------- Config: generate 100 levels
+    const MAX_LEVELS = 100
+    const CAPACITY = 4
+
+    // seed colors
+    const BASE_COLORS = ["#FF6B6B","#6BCB77","#FFB86B","#5ED0FF","#C67CFF","#FFD6A5","#7EF5A1","#8EC5FF","#FF9ED6","#B6F0C7"]
+
+    // generate levels with growing complexity
+    const LEVELS = []
+    function generateLevels(){
+      // first few hand-crafted easier levels
+      LEVELS.push({tubes:[["#FF6B6B","#FF6B6B","#FF6B6B","#FF6B6B"],["#6BCB77","#6BCB77","#6BCB77","#6BCB77"],[],[]], label:1})
+      LEVELS.push({tubes:[["#FF6B6B","#FF6B6B","#6BCB77","#6BCB77"],["#6BCB77","#FFB86B","#FFB86B","#FF6B6B"],["#FFB86B","#FFB86B","#6BCB77","#FF6B6B"],[],[]], label:2})
+
+      for(let levelIdx=3; levelIdx<=MAX_LEVELS; levelIdx++){
+        const colorsCount = Math.min(3 + Math.floor(levelIdx/7), 10) // slowly increase up to 10 colors
+        const tubesCount = colorsCount + 2 // always have a couple empties to keep solvable
+        const pool = []
+        for(let c=0;c<colorsCount;c++){
+          for(let s=0;s<CAPACITY;s++) pool.push(BASE_COLORS[c % BASE_COLORS.length])
+        }
+        // shuffle pool
+        for(let i=pool.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [pool[i],pool[j]]=[pool[j],pool[i]] }
+        // distribute
+        const tubes = Array.from({length:tubesCount},()=>[])
+        let idx=0
+        for(let t=0;t<tubesCount-2;t++){
+          for(let s=0;s<CAPACITY;s++){
+            tubes[t].push(pool[idx++] || BASE_COLORS[idx % BASE_COLORS.length])
+          }
+        }
+        // 2 empty tubes remain
+        LEVELS.push({tubes,label:levelIdx})
+      }
+    }
+    generateLevels()
+
+    // ---------- State
+    let currentLevel = 0
+    let state = null
+    let selected = null
+    let moveHistory = []
+    let timerInterval = null
+    let startTime = null
+    let paused = false
+
+    // ---------- DOM refs
+    const board = document.getElementById('board')
+    const levelLabel = document.getElementById('levelLabel')
+    const movesEl = document.getElementById('moves')
+    const timerEl = document.getElementById('timer')
+    const pauseOverlay = document.getElementById('pauseOverlay')
+
+    // ---------- Audio util
+    function playPour(frequency=520,duration=0.07){
+      try{
+        const ctx = window.__ws_audio_ctx || new (window.AudioContext || window.webkitAudioContext)()
+        window.__ws_audio_ctx = ctx
+        const o = ctx.createOscillator(); const g = ctx.createGain();
+        o.type='sine'; o.frequency.value = frequency; g.gain.value=0.03; o.connect(g); g.connect(ctx.destination); o.start();
+        g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime+duration);
+        o.stop(ctx.currentTime+duration+0.01);
+      }catch(e){/* noop */}
+    }
+
+    // ---------- Helpers: render tubes (optimized)
+    function render(){
+      // recycle DOM when possible — but for simplicity re-build (still fine for mobile with <= 20-30 tubes visible)
+      board.innerHTML=''
+      const level = LEVELS[currentLevel]
+      levelLabel.textContent = `Level ${level.label}`
+
+      level.tubes.forEach((tube, i)=>{
+        const tNode = document.getElementById('tubeTemplate').content.cloneNode(true)
+        const tubeEl = tNode.querySelector('.tube')
+        const inner = tubeEl.querySelector('.tube-inner')
+        const label = tubeEl.querySelector('.tube-label')
+        label.textContent = i+1
+        tubeEl.dataset.index = i
+        const filled = tube.length
+        // build layers bottom to top (so DOM order matches visual stack)
+        inner.innerHTML=''
+        for(let layer=0; layer<filled; layer++){
+          const color = tube[layer]
+          const layerEl = document.createElement('div')
+          layerEl.className='liquid-layer'
+          layerEl.style.background = `linear-gradient(180deg, ${color}, ${shade(color,-14)})`
+          // visual translate to position layers from bottom
+          const y = (CAPACITY - filled + layer) * varUnit('liquid-layer-h')
+          layerEl.style.transform = `translateY(${y}px)`
+          layerEl.style.height = `var(--liquid-layer-h)`
+          inner.appendChild(layerEl)
+        }
+        tubeEl.addEventListener('click',()=>onTubeClick(i))
+        // support touch (fast tap) and accessibility
+        tubeEl.addEventListener('touchstart',(e)=>{ e.preventDefault(); tubeEl.classList.add('touched') },{passive:false})
+        tubeEl.addEventListener('touchend',(e)=>{ e.preventDefault(); tubeEl.classList.remove('touched') },{passive:false})
+
+        board.appendChild(tNode)
+      })
+
+      movesEl.textContent = state.moves
+      updateTimerDisplay()
+      renderProgress()
+    }
+
+    function varUnit(name){ if(name==='liquid-layer-h') return parseInt(getComputedStyle(document.documentElement).getPropertyValue('--liquid-layer-h')) || 28; return 28 }
+    function shade(hex,percent){ const c = hex.replace('#',''); const num = parseInt(c,16); let r=(num>>16), g=(num>>8)&0x00FF, b=num&0x0000FF; r = Math.max(0,Math.min(255,Math.round(r*(1+percent/100)))); g = Math.max(0,Math.min(255,Math.round(g*(1+percent/100)))); b = Math.max(0,Math.min(255,Math.round(b*(1+percent/100)))); return '#'+( (1<<24) + (r<<16) + (g<<8) + b ).toString(16).slice(1) }
+
+    // ---------- Game flow
+    function startLevel(idx){
+      currentLevel = idx
+      const lvl = LEVELS[currentLevel]
+      state = {tubes: lvl.tubes.map(t=>t.slice()), moves:0, time:0}
+      selected = null; moveHistory = []
+      stopTimer(); startTimer()
+      render()
+    }
+
+    function onTubeClick(i){ if(paused) return; const tubes = state.tubes; const tube = tubes[i]; if(selected===null){ if(tube.length===0) return; selected=i; flashSelect(i); } else if(selected===i){ selected=null } else { if(canPour(selected,i)){ doPour(selected,i); selected=null; render(); if(checkWin()){ playWin(); setTimeout(()=>{ showLevelComplete() },260) } } else { animateInvalid(i) } } renderSelection()
+    }
+
+    function flashSelect(i){ const el = board.querySelector(`.tube[data-index="${i}"]`); if(!el) return; el.animate([{transform:'scale(1)'},{transform:'scale(1.03)'},{transform:'scale(1)'}],{duration:300}) }
+    function renderSelection(){ // highlight selected tube visually
+      board.querySelectorAll('.tube').forEach(t=> t.classList.toggle('selected', Number(t.dataset.index)===selected)) }
+
+    function canPour(fromIdx,toIdx){
+      const from = state.tubes[fromIdx]; const to = state.tubes[toIdx]; if(from.length===0) return false; if(to.length===CAPACITY) return false; const topColor = from[from.length-1]; let count=1; for(let i=from.length-2;i>=0;i--){ if(from[i]===topColor) count++; else break } if(to.length===0) return true; const topTo = to[to.length-1]; return topTo===topColor
+    }
+
+    function doPour(fromIdx,toIdx){ const from = state.tubes[fromIdx]; const to = state.tubes[toIdx]; const topColor = from[from.length-1]; let moveCount=0; for(let i=from.length-1;i>=0;i--){ if(from[i]===topColor && to.length+moveCount<CAPACITY){ from.pop(); to.push(topColor); moveCount++ } else break } state.moves++; moveHistory.push({from:fromIdx,to:toIdx,count:moveCount}); playPour(); }
+
+    function animateInvalid(i){ const el = board.querySelector(`.tube[data-index="${i}"]`); if(!el) return; el.animate([{transform:'translateX(0px)'},{transform:'translateX(-8px)'},{transform:'translateX(6px)'},{transform:'translateX(0px)'}],{duration:300}) }
+
+    function undo(){ if(moveHistory.length===0 || paused) return; const last = moveHistory.pop(); for(let k=0;k<last.count;k++){ const v = state.tubes[last.to].pop(); state.tubes[last.from].push(v) } state.moves++; render() }
+
+    function checkWin(){ return state.tubes.every(t=> t.length===0 || (t.length===CAPACITY && t.every(c=>c===t[0]))) }
+
+    function showLevelComplete(){ // small modal replacement — use confirm for simplicity on mobile
+      stopTimer(); if(currentLevel<LEVELS.length-1){ if(confirm('Level complete! Proceed to next level?')) startLevel(currentLevel+1) } else { alert('You completed all levels — amazing!') }
+    }
+
+    function nextLevel(){ if(currentLevel<LEVELS.length-1) startLevel(currentLevel+1); else alert('Congrats! You finished all levels.') }
+
+    function playWin(){ try{ const ctx = window.__ws_audio_ctx || new (window.AudioContext || window.webkitAudioContext)(); window.__ws_audio_ctx = ctx; const o1=ctx.createOscillator(); const g=ctx.createGain(); o1.type='triangle'; o1.frequency.value=760; g.gain.value=0.06; o1.connect(g); g.connect(ctx.destination); o1.start(); g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime+0.45); o1.stop(ctx.currentTime+0.5) }catch(e){} }
+
+    // ---------- Timer
+    function startTimer(){ startTime = Date.now(); stopTimer(); timerInterval = setInterval(()=>{ state.time = Math.floor((Date.now()-startTime)/1000); updateTimerDisplay() }, 1000) }
+    function stopTimer(){ if(timerInterval) clearInterval(timerInterval); timerInterval=null }
+    function updateTimerDisplay(){ const t = state?.time||0; const mm=String(Math.floor(t/60)).padStart(2,'0'); const ss=String(t%60).padStart(2,'0'); timerEl.textContent = `${mm}:${ss}` }
+
+    // ---------- UI actions
+    document.getElementById('pauseBtn').addEventListener('click',()=>{ paused=true; pauseOverlay.style.display='flex'; stopTimer(); document.getElementById('pauseBtn').disabled=true })
+    document.getElementById('resumeBtn').addEventListener('click',()=>{ paused=false; pauseOverlay.style.display='none'; startTimer(); document.getElementById('pauseBtn').disabled=false })
+    document.getElementById('quitBtn').addEventListener('click',()=>{ paused=false; pauseOverlay.style.display='none'; startLevel(0) })
+    document.getElementById('restartBtn').addEventListener('click',()=> startLevel(currentLevel))
+    document.getElementById('undoBtn').addEventListener('click',undo)
+    document.getElementById('hintBtn').addEventListener('click',()=>{ provideHint() })
+
+    // levels progress
+    function renderProgress(){ const container = document.getElementById('levelsProgress'); container.innerHTML=''; for(let i=0;i<LEVELS.length;i++){ const b = document.createElement('button'); b.textContent = i+1; b.className='btn secondary'; b.style.padding='6px 8px'; b.style.fontSize='13px'; if(i===currentLevel) b.style.boxShadow='0 6px 18px rgba(124,58,237,0.35)'; b.addEventListener('click',()=>startLevel(i)); container.appendChild(b) }}
+
+    // hint: find a valid pour and animate
+    function provideHint(){ if(paused) return; for(let i=0;i<state.tubes.length;i++){ for(let j=0;j<state.tubes.length;j++){ if(i!==j && canPour(i,j)){ const el = board.querySelector(`.tube[data-index="${j}"]`); if(el){ el.animate([{transform:'scale(1)'},{transform:'scale(1.06)'},{transform:'scale(1)'}],{duration:600}); playPour(560,0.05); return } } } } alert('No obvious hint — try different moves.') }
+
+    // ---------- PWA: inline manifest and service worker via Blob (works without extra files)
+    const manifestObj = {
+      name: 'Water Sort Puzzle',
+      short_name: 'WaterSort',
+      start_url: '.',
+      display: 'standalone',
+      background_color: '#071a2a',
+      theme_color: '#071a2a',
+      icons: [{src:'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="192" height="192"><rect width="100%" height="100%" fill="%23073a62"/><text x="50%" y="50%" font-size="60" font-family="Arial" dy=".35em" fill="white" text-anchor="middle">WS</text></svg>',sizes:'192x192',type:'image/svg+xml'}]
+    }
+    const manifestURL = URL.createObjectURL(new Blob([JSON.stringify(manifestObj)],{type:'application/json'}))
+    document.getElementById('manifestLink').setAttribute('href', manifestURL)
+
+    // service worker (very small) registered from blob so single-file deploy works
+    const swCode = `self.addEventListener('install',e=>{self.skipWaiting()});self.addEventListener('activate',e=>{self.clients.claim()});self.addEventListener('fetch',e=>{});`
+    try{
+      const swBlob = new Blob([swCode],{type:'text/javascript'})
+      const swUrl = URL.createObjectURL(swBlob)
+      if('serviceWorker' in navigator){ navigator.serviceWorker.register(swUrl).catch(()=>{/* ignore */}) }
+    }catch(e){}
+
+    // ---------- small utilities
+    function formatMs(ms){ const s=Math.floor(ms/1000); return `${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}` }
+
+    // ---------- init
+    startLevel(0)
+
+    // ---------- Notes for Android/Web
+    // This single-file app is PWA friendly (manifest + service-worker are inlined). To run on Android:
+    // 1) Host this file on HTTPS (or open via local file with modern browsers that allow service worker testing).
+    // 2) Open in Chrome on Android -> open browser menu -> "Install app" or "Add to Home screen".
+    // 3) The app will launch standalone and behave like a native app. Touch inputs are supported.
+
+    // Performance tips: keep visible tubes per screen lower for low-end phones. For very large tube counts use virtualization.
+
+  </script>
+</body>
+</html>
